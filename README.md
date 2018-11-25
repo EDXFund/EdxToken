@@ -16,17 +16,33 @@ Token contracts for edx
 
 ## 	grantRole(address account,uint8 mtype,uint256 amount)
 
-  * use grantRole to set authorize
-  * param:
+* use grantRole to set authorization
+* param:
 
-    1.account: which account to author
+  1.account: which account to author
 
-    2.mtype:  
+  2.mtype:  
+
+  * 2 as basestone
+  * 3 as pe Invest
+  * 4 as team Invest info
+  * others clear account's rights
+
+  3.amount  
+  how many tokens can be used
+
+  ##    roleInfo(uint8 mtype)  returns(address,uint256)
+
+   check for bs/pe/tm roleInfo
+
+  ** param:**
+
+    1.mtype:  
 
     * 2 as basestone
     * 3 as pe Invest
     * 4 as team Invest info
-    * others clear account's rights
 
-    3.amount  
-    how many tokens can be used
+  ** returns **
+
+   (address,value) address is master account for bs/pe/tm and value mean how many coins can be assigned
