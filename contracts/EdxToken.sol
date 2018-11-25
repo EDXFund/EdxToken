@@ -27,6 +27,10 @@ contract EdxToken is ERC20 {
 		uint256 peRemain;
 		uint256 remains;
 	}
+	struct GrantInfo {
+		address holder;
+		uint256 remain;
+	}
   mapping (address => uint256) private _balances;		 //balance of transferrable
   mapping (address => VestInfo) private _bs_balance; //info of vested
   mapping (address => VestInfo) private _pe_balance;
@@ -37,6 +41,9 @@ contract EdxToken is ERC20 {
   bool    mainnet;
   uint256 private _totalSupply;
   address _owner;
+	GrantInfo _bsholder;
+	GrantInfo _peholder;
+	GrantInfo _tmholder;
   CoinInfo supplies;
 
   event Transfer(address indexed from, address indexed to, uint256 value);
@@ -77,26 +84,70 @@ contract EdxToken is ERC20 {
     function  detailedBalance(address account, uint dtype) public view returns(uint256,uint256) {
 
         if (dtype == 0) {
-                return balanceOf(account),balanceOf(account);
+                return (balanceOf(account),balanceOf(account));
             }
         else if (dtype == 1){
-            return  _balances[account],_balances[account];
+            return  (_balances[account],_balances[account]);
 
         }
          else if( dtype ==  2 ) {
-            return  _bs_balance[account].vested,_bs_balance[account].remain;
+            return  (_bs_balance[account].vested,_bs_balance[account].remain);
 
         }else if (dtype ==  3){
-					  return _pe_balance[account].vested,_pe_balance[account].remain;
+					  return (_pe_balance[account].vested,_pe_balance[account].remain);
 		}else if (dtype ==  4){
-					  return _tm_balance[account].vested,_tm_balance[account].remain;
+					  return (_tm_balance[account].vested,_tm_balance[account].remain);
 		}else {
-		    return 0,0;
+		    return (0,0);
 		 }
 
     }
+	//set rol for account
+	function grantRole(address account,uint8 mtype,uint256 amount) public{
+		require(msg.sender == _owner);
+
+			if(_bsholder.holder == account) {
+				_bsholder.holder = address(0);
+			}
+			if(_peholder.holder == account){
+				_peholder.holder = address(0);
+			}
+			if(_tmholder.holder == account){
+					_tmholder.holder = address(0);
+			}
+		 if(mtype == 2) {
+			 require(supplies.bsRemain >= amount);
+			 _bsholder.holder = account;
+			 _bsholder.remain = amount;
+
+		}else if(mtype == 3){
+			require(supplies.peRemain >= amount);
+			_peholder.holder = account;
+			_peholder.remain = amount;
+		}else if(mtype == 4){
+			require(supplies.tmRemain >= amount);
+			_tmholder.holder = account;
+			_tmholder.remain = amount;
+		}
+	}
+	function roleInfo(uint8 mtype)  public view returns(address,uint256) {
+		if(mtype == 2) {
+			return (_bsholder.holder,_bsholder.remain);
+		} else if(mtype == 3) {
+			return (_peholder.holder,_peholder.remain);
+		}else if(mtype == 4) {
+			return (_tmholder.holder,_tmholder.remain);
+		}else {
+			return (address(0),0);
+		}
+	}
 	function  transferBasestone(address account, uint256 value) public {
 		require(msg.sender == _owner);
+		_transferBasestone(account,value);
+
+	}
+	function  _transferBasestone(address account, uint256 value) internal {
+
 		require(supplies.bsRemain > value);
 		supplies.bsRemain = supplies.bsRemain.sub(value);
 		_bs_balance[account].vested = _bs_balance[account].vested.add(value);
@@ -105,6 +156,9 @@ contract EdxToken is ERC20 {
 	}
 	function  transferPE(address account, uint256 value) public {
 		require(msg.sender == _owner);
+		_transferPE(account,value);
+	}
+	function  _transferPE(address account, uint256 value) internal {
 		require(supplies.peRemain > value);
 		supplies.peRemain = supplies.peRemain.sub(value);
 		_pe_balance[account].vested = _pe_balance[account].vested.add(value);
@@ -112,6 +166,9 @@ contract EdxToken is ERC20 {
 	}
 	function  transferTM(address account, uint256 value) public {
 		require(msg.sender == _owner);
+		_transferTM(account,value);
+	}
+	function  _transferTM(address account, uint256 value) internal {
 		require(supplies.tmRemain > value);
 		supplies.tmRemain = supplies.tmRemain.sub(value);
 		_tm_balance[account].vested = _tm_balance[account].vested.add(value);
@@ -142,7 +199,25 @@ contract EdxToken is ERC20 {
   * @param value The amount to be transferred.
   */
   function transfer(address to, uint256 value) public returns (bool) {
-    _transfer(msg.sender, to, value);
+		if(msg.sender == _bsholder.holder ){
+			require(_bsholder.remain >= value);
+			_bsholder.remain = _bsholder.remain.sub(value);
+			_transferBasestone(to,value);
+
+		}else if(msg.sender == _peholder.holder) {
+			require(_peholder.remain >= value);
+			_peholder.remain = _peholder.remain.sub(value);
+			_transferPE(to,value);
+
+		}else if(msg.sender == _tmholder.holder){
+			require(_tmholder.remain >= value);
+			_tmholder.remain = _tmholder.remain.sub(value);
+			_transferTM(to,value);
+
+		}else{
+    	_transfer(msg.sender, to, value);
+		}
+
     return true;
   }
 
@@ -227,7 +302,7 @@ contract EdxToken is ERC20 {
     require(spender != address(0));
 
     _allowed[msg.sender][spender] = (
-      _allowed[msg.sender][spender].sub(subtractedValue));
+    _allowed[msg.sender][spender].sub(subtractedValue));
     emit Approval(msg.sender, spender, _allowed[msg.sender][spender]);
     return true;
   }
@@ -239,6 +314,7 @@ contract EdxToken is ERC20 {
   * @param value The amount to be transferred.
   */
   function _transfer(address from, address to, uint256 value) internal {
+
 		_moveBSBalance(from);
 		_movePEBalance(from);
 		_moveTMBalance(from);
@@ -333,6 +409,7 @@ contract EdxToken is ERC20 {
 	 _totalSupply = _totalSupply.add(value);
 	 //增发的部分总是可以自由转移的
 	 supplies.remains = supplies.remains.add(value);
+	 		emit Mint(1,value);
  }
  //增发
  function _mintBS(uint256 value) public {
@@ -341,6 +418,7 @@ contract EdxToken is ERC20 {
 	_totalSupply = _totalSupply.add(value);
 	//增发的部分总是可以自由转移的
 	supplies.bsRemain = supplies.bsRemain.add(value);
+			emit Mint(2,value);
  }
  //增发
  function _mintPE(uint256 value) public {
@@ -349,6 +427,7 @@ contract EdxToken is ERC20 {
 	_totalSupply = _totalSupply.add(value);
 	//增发的部分总是可以自由转移的
 	supplies.peRemain = supplies.peRemain.add(value);
+		emit Mint(3,value);
  }
  //销毁
  function _burn(uint256 value) public {
@@ -357,14 +436,16 @@ contract EdxToken is ERC20 {
 	require(supplies.remains >= value);
 	_totalSupply = _totalSupply.sub(value);
 	supplies.remains = supplies.remains.sub(value);
+	emit Burn(0,value);
  }
   //销毁团队的
  function _burnTM(uint256 value) public {
 	require(msg.sender == _owner);
-		require(mainnet == false); //主网上线后冻结代币
+	require(mainnet == false); //主网上线后冻结代币
 	require(supplies.remains >= value);
 	_totalSupply = _totalSupply.sub(value);
 	supplies.tmRemain = supplies.tmRemain.sub(value);
+  emit Burn(3,value);
  }
  //主网上线，允许迁移代币
  function startupMainnet() public {

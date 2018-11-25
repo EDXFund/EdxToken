@@ -14,3 +14,20 @@ Token contracts for edx
   * 2 basestone Invest info   (all invested, locked)
   * 3 pe Invest info   (all invested, locked)
   * 4 team Invest info   (all invested, locked)
+  
+## 	grantRole(address account,uint8 mtype,uint256 amount)
+
+  * use grantRole to set authorize
+  * param:
+
+    1.account: which account to author
+
+    2.mtype:  
+
+    * 2 as basestone
+    * 3 as pe Invest
+    * 4 as team Invest info
+    * others clear account's rights
+
+    3.amount  
+    how many tokens can be used
