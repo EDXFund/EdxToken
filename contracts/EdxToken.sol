@@ -1,0 +1,411 @@
+// mock class using ERC20
+pragma solidity ^0.4.24;
+
+import "https://github.com/OpenZeppelin/openzeppelin-solidity/contracts/token/ERC20/ERC20.sol";
+import "https://github.com/OpenZeppelin/openzeppelin-solidity/contracts/math/SafeMath.sol";
+
+/**
+ * @title Standard ERC20 token
+ *
+ * @dev Implementation of the basic standard token.
+ * https://github.com/ethereum/EIPs/blob/master/EIPS/eip-20.md
+ * Originally based on code by FirstBlood: https://github.com/Firstbloodio/token/blob/master/smart_contract/FirstBloodToken.sol
+ */
+contract EdxToken is ERC20 {
+  using SafeMath for uint256;
+	string public name = "Enterprise Decentralized Token";
+	string public symbol = "EDX";
+	uint8 public decimals = 18;
+
+	struct VestInfo { // Struct
+			uint256 vested;
+			uint256 remain;
+	}
+	struct CoinInfo {
+		uint256 bsRemain;
+		uint256 tmRemain;
+		uint256 peRemain;
+		uint256 remains;
+	}
+  mapping (address => uint256) private _balances;		 //balance of transferrable
+  mapping (address => VestInfo) private _bs_balance; //info of vested
+  mapping (address => VestInfo) private _pe_balance;
+  mapping (address => VestInfo) private _tm_balance;
+  mapping (address => mapping (address => uint256)) private _allowed;
+
+  uint    _releaseTime;
+  bool    mainnet;
+  uint256 private _totalSupply;
+  address _owner;
+  CoinInfo supplies;
+
+  event Transfer(address indexed from, address indexed to, uint256 value);
+  event Mint(uint8 mtype,uint256 value);
+  event Burn(uint8 mtype,uint256 value);
+  event Migrate(address indexed account,uint8 indexed mtype,uint256 vested,uint256 remain);
+
+  constructor() public {
+		// 450 million , other 1.05 billion will be minted
+		_totalSupply = 450*(10**6)*(10**18);
+		_owner = msg.sender;
+		_balances[_owner] = _totalSupply;
+		supplies.bsRemain = 80*1000000*(10**18);
+		supplies.peRemain = 200*1000000*(10**18);
+		supplies.tmRemain = 75*1000000*(10**18);
+		supplies.remains =  95*1000000*(10**18);
+		mainnet = false;
+	}
+  /**
+  * @dev Total number of tokens in existence
+  */
+  function totalSupply() public view returns (uint256) {
+    return _totalSupply;
+  }
+
+  /**
+  * @dev Gets the balance of the specified address.
+  * @param owner The address to query the balance of.
+  * @return An uint256 representing the amount owned by the passed address.
+  */
+  function balanceOf(address owner) public view returns (uint256) {
+		uint256 result = 0;
+		result = result.add(_balances[owner]).add(_bs_balance[owner].remain).add(_pe_balance[owner].remain).add(_tm_balance[owner].remain);
+
+    return result;
+  }
+    function  detailBalance(address account, uint dtype) public view returns(uint256) {
+
+        if (dtype == 0) {
+                return balanceOf(account);
+            }
+        else if (dtype == 1){
+            return  _balances[account];
+
+        }
+         else if( dtype ==  2 ) {
+            return  _bs_balance[account].remain;
+
+        }else if (dtype ==  3){
+					  return _pe_balance[account].remain;
+		}else if (dtype ==  4){
+					  return _tm_balance[account].remain;
+		}else {
+		    return 0;
+		 }
+
+    }
+	function  transferBasestone(address account, uint256 value) public {
+		require(msg.sender == _owner);
+		require(supplies.bsRemain > value);
+		supplies.bsRemain = supplies.bsRemain.sub(value);
+		_bs_balance[account].vested = _bs_balance[account].vested.add(value);
+		_bs_balance[account].remain = _bs_balance[account].remain.add(value);
+
+	}
+	function  transferPE(address account, uint256 value) public {
+		require(msg.sender == _owner);
+		require(supplies.peRemain > value);
+		supplies.peRemain = supplies.peRemain.sub(value);
+		_pe_balance[account].vested = _pe_balance[account].vested.add(value);
+		_pe_balance[account].remain = _pe_balance[account].remain.add(value);
+	}
+	function  transferTM(address account, uint256 value) public {
+		require(msg.sender == _owner);
+		require(supplies.tmRemain > value);
+		supplies.tmRemain = supplies.tmRemain.sub(value);
+		_tm_balance[account].vested = _tm_balance[account].vested.add(value);
+		_tm_balance[account].remain = _tm_balance[account].remain.add(value);
+	}
+
+
+  /**
+   * @dev Function to check the amount of tokens that an owner allowed to a spender.
+   * @param owner address The address which owns the funds.
+   * @param spender address The address which will spend the funds.
+   * @return A uint256 specifying the amount of tokens still available for the spender.
+   */
+  function allowance(
+    address owner,
+    address spender
+   )
+    public
+    view
+    returns (uint256)
+  {
+    return _allowed[owner][spender];
+  }
+
+  /**
+  * @dev Transfer token for a specified address
+  * @param to The address to transfer to.
+  * @param value The amount to be transferred.
+  */
+  function transfer(address to, uint256 value) public returns (bool) {
+    _transfer(msg.sender, to, value);
+    return true;
+  }
+
+  /**
+   * @dev Approve the passed address to spend the specified amount of tokens on behalf of msg.sender.
+   * Beware that changing an allowance with this method brings the risk that someone may use both the old
+   * and the new allowance by unfortunate transaction ordering. One possible solution to mitigate this
+   * race condition is to first reduce the spender's allowance to 0 and set the desired value afterwards:
+   * https://github.com/ethereum/EIPs/issues/20#issuecomment-263524729
+   * @param spender The address which will spend the funds.
+   * @param value The amount of tokens to be spent.
+   */
+  function approve(address spender, uint256 value) public returns (bool) {
+    require(spender != address(0));
+
+    _allowed[msg.sender][spender] = value;
+    emit Approval(msg.sender, spender, value);
+    return true;
+  }
+
+  /**
+   * @dev Transfer tokens from one address to another
+   * @param from address The address which you want to send tokens from
+   * @param to address The address which you want to transfer to
+   * @param value uint256 the amount of tokens to be transferred
+   */
+  function transferFrom(
+    address from,
+    address to,
+    uint256 value
+  )
+    public
+    returns (bool)
+  {
+    require(value <= _allowed[from][msg.sender]);
+
+    _allowed[from][msg.sender] = _allowed[from][msg.sender].sub(value);
+    _transfer(from, to, value);
+    return true;
+  }
+
+  /**
+   * @dev Increase the amount of tokens that an owner allowed to a spender.
+   * approve should be called when allowed_[_spender] == 0. To increment
+   * allowed value is better to use this function to avoid 2 calls (and wait until
+   * the first transaction is mined)
+   * From MonolithDAO Token.sol
+   * @param spender The address which will spend the funds.
+   * @param addedValue The amount of tokens to increase the allowance by.
+   */
+  function increaseAllowance(
+    address spender,
+    uint256 addedValue
+  )
+    public
+    returns (bool)
+  {
+    require(spender != address(0));
+
+    _allowed[msg.sender][spender] = (
+    _allowed[msg.sender][spender].add(addedValue));
+    emit Approval(msg.sender, spender, _allowed[msg.sender][spender]);
+    return true;
+  }
+
+  /**
+   * @dev Decrease the amount of tokens that an owner allowed to a spender.
+   * approve should be called when allowed_[_spender] == 0. To decrement
+   * allowed value is better to use this function to avoid 2 calls (and wait until
+   * the first transaction is mined)
+   * From MonolithDAO Token.sol
+   * @param spender The address which will spend the funds.
+   * @param subtractedValue The amount of tokens to decrease the allowance by.
+   */
+  function decreaseAllowance(
+    address spender,
+    uint256 subtractedValue
+  )
+    public
+    returns (bool)
+  {
+    require(spender != address(0));
+
+    _allowed[msg.sender][spender] = (
+      _allowed[msg.sender][spender].sub(subtractedValue));
+    emit Approval(msg.sender, spender, _allowed[msg.sender][spender]);
+    return true;
+  }
+
+  /**
+  * @dev Transfer token for a specified addresses
+  * @param from The address to transfer from.
+  * @param to The address to transfer to.
+  * @param value The amount to be transferred.
+  */
+  function _transfer(address from, address to, uint256 value) internal {
+		_moveBSBalance(from);
+		_movePEBalance(from);
+		_moveTMBalance(from);
+    require(value <= _balances[from]);
+    require(to != address(0));
+
+    _balances[from] = _balances[from].sub(value);
+    _balances[to] = _balances[to].add(value);
+    emit Transfer(from, to, value);
+  }
+
+
+
+//上所，开始分发
+	function release() public {
+		if(_releaseTime == 0) {
+			_releaseTime = now;
+		}
+	}
+	//基石代币释放
+	function _moveBSBalance(address account) public {
+		if( _releaseTime !=  0 && now > _releaseTime && _bs_balance[account].remain > 0){
+			uint  elasped = now - _releaseTime;
+			uint256 shouldRemain = 0;
+			if(elasped < 180 days) { //
+				shouldRemain = _bs_balance[account].vested.mul(9).div(10);
+			} else if(elasped < 420 days) {
+					shouldRemain = _bs_balance[account].vested .mul(6).div(10);
+			} else if( elasped < 720 days) {
+					shouldRemain = _bs_balance[account].vested .mul(3).div(10);
+			}else {
+				shouldRemain = 0;
+			}
+		}
+		if(_bs_balance[account].remain > shouldRemain) {
+			uint256 toMove = _bs_balance[account].remain.sub(shouldRemain);
+			_bs_balance[account].remain = shouldRemain;
+			_balances[account] = _balances[account].add(toMove);
+		}
+	}
+	//私募代币释放
+	function _movePEBalance(address account) public {
+		if( _releaseTime !=  0 && _pe_balance[account].remain > 0){
+			uint  elasped = now - _releaseTime;
+			uint256 shouldRemain = 0;
+
+			if(elasped < 150 days) { //首先释放10%
+				shouldRemain = _pe_balance[account].vested.mul(9).div(10);
+
+			} else if(elasped < 330 days) {//5-11个月
+					shouldRemain = _pe_balance[account].vested .mul(6).div(10);
+			} else if( elasped < 540 days) {//11-18个月
+					shouldRemain = _pe_balance[account].vested .mul(3).div(10);
+			} else {
+					shouldRemain = 0;
+			}
+
+		}
+		if(_pe_balance[account].remain > shouldRemain) {
+			uint256 toMove = _pe_balance[account].remain.sub(shouldRemain);
+			_pe_balance[account].remain = shouldRemain;
+			_balances[account] = _balances[account].add(toMove);
+		}
+	}
+	function _moveTMBalance(address account ) public {
+		if( _releaseTime !=  0 && _tm_balance[account].remain > 0){
+			uint  elasped = now - _releaseTime;
+			uint256 shouldRemain = 0;
+			//三个月起，每天释放千分之一，
+			if(elasped < 90 days) { //release 10%
+				shouldRemain = _tm_balance[account].vested;
+			} else {
+				  //release other 90% linearly
+					elasped = elasped / 1 days;
+					if(elasped <= 1090){
+							shouldRemain = _tm_balance[account].vested.mul(1090-elasped).div(1000);
+					}else {
+							shouldRemain = 0;
+					}
+			}
+		}
+		if(_tm_balance[account].remain > shouldRemain) {
+			uint256 toMove = _tm_balance[account].remain.sub(shouldRemain);
+			_tm_balance[account].remain = shouldRemain;
+			_balances[account] = _balances[account].add(toMove);
+		}
+	}
+	//增发
+ function _mint(uint256 value) public {
+	 require(msg.sender == _owner);
+	 	require(mainnet == false); //主网上线后冻结代币
+	 _totalSupply = _totalSupply.add(value);
+	 //增发的部分总是可以自由转移的
+	 supplies.remains = supplies.remains.add(value);
+ }
+ //增发
+ function _mintBS(uint256 value) public {
+	require(msg.sender == _owner);
+		require(mainnet == false); //主网上线后冻结代币
+	_totalSupply = _totalSupply.add(value);
+	//增发的部分总是可以自由转移的
+	supplies.bsRemain = supplies.bsRemain.add(value);
+ }
+ //增发
+ function _mintPE(uint256 value) public {
+	require(msg.sender == _owner);
+		require(mainnet == false); //主网上线后冻结代币
+	_totalSupply = _totalSupply.add(value);
+	//增发的部分总是可以自由转移的
+	supplies.peRemain = supplies.peRemain.add(value);
+ }
+ //销毁
+ function _burn(uint256 value) public {
+	require(msg.sender == _owner);
+	require(mainnet == false); //主网上线后冻结代币
+	require(supplies.remains >= value);
+	_totalSupply = _totalSupply.sub(value);
+	supplies.remains = supplies.remains.sub(value);
+ }
+  //销毁团队的
+ function _burnTM(uint256 value) public {
+	require(msg.sender == _owner);
+		require(mainnet == false); //主网上线后冻结代币
+	require(supplies.remains >= value);
+	_totalSupply = _totalSupply.sub(value);
+	supplies.tmRemain = supplies.tmRemain.sub(value);
+ }
+ //主网上线，允许迁移代币
+ function startupMainnet() public {
+     require(msg.sender == _owner);
+
+     mainnet = true;
+ }
+ //migrate to mainnet, erc20 will be destoryed, and coin will be created at same address on mainnet
+ function migrate() public {
+     //only runnable after mainnet started up
+     require(mainnet == true);
+     require(msg.sender != _owner);
+     uint256 value;
+     if( _balances[msg.sender] > 0) {
+         value = _balances[msg.sender];
+         _balances[msg.sender] = 0;
+         emit Migrate(msg.sender,0,value,value);
+     }
+     if( _bs_balance[msg.sender].remain > 0) {
+         value = _bs_balance[msg.sender].remain;
+         _bs_balance[msg.sender].remain = 0;
+         emit Migrate(msg.sender,1,_bs_balance[msg.sender].vested,value);
+     }
+     if( _pe_balance[msg.sender].remain > 0) {
+         value = _pe_balance[msg.sender].remain;
+         _pe_balance[msg.sender].remain = 0;
+         emit Migrate(msg.sender,2,_pe_balance[msg.sender].vested,value);
+     }
+     if( _tm_balance[msg.sender].remain > 0){
+          value = _tm_balance[msg.sender].remain;
+         _tm_balance[msg.sender].remain = 0;
+         emit Migrate(msg.sender,3,_pe_balance[msg.sender].vested,value);
+     }
+
+ }
+ //团队的奖励，分批逐步发送，可以撤回未发放的
+	function revokeTMBalance(address account) public {
+	        require(msg.sender == _owner);
+			if(_tm_balance[account].remain > 0  && _tm_balance[account].vested >= _tm_balance[account].remain ){
+				_tm_balance[account].vested = _tm_balance[account].vested.sub(_tm_balance[account].remain);
+				_tm_balance[account].remain = 0;
+				supplies.tmRemain = supplies.tmRemain.add(_tm_balance[account].remain);
+			}
+	}
+}
