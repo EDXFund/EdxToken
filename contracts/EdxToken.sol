@@ -42,6 +42,7 @@ contract EdxToken is ERC20 {
   event Transfer(address indexed from, address indexed to, uint256 value);
   event Mint(uint8 mtype,uint256 value);
   event Burn(uint8 mtype,uint256 value);
+	event Invest( address indexed account, uint indexed mtype, uint256 vested);
   event Migrate(address indexed account,uint8 indexed mtype,uint256 vested,uint256 remain);
 
   constructor() public {
@@ -73,24 +74,24 @@ contract EdxToken is ERC20 {
 
     return result;
   }
-    function  detailBalance(address account, uint dtype) public view returns(uint256) {
+    function  detailedBalance(address account, uint dtype) public view returns(uint256,uint256) {
 
         if (dtype == 0) {
-                return balanceOf(account);
+                return balanceOf(account),balanceOf(account);
             }
         else if (dtype == 1){
-            return  _balances[account];
+            return  _balances[account],_balances[account];
 
         }
          else if( dtype ==  2 ) {
-            return  _bs_balance[account].remain;
+            return  _bs_balance[account].vested,_bs_balance[account].remain;
 
         }else if (dtype ==  3){
-					  return _pe_balance[account].remain;
+					  return _pe_balance[account].vested,_pe_balance[account].remain;
 		}else if (dtype ==  4){
-					  return _tm_balance[account].remain;
+					  return _tm_balance[account].vested,_tm_balance[account].remain;
 		}else {
-		    return 0;
+		    return 0,0;
 		 }
 
     }
