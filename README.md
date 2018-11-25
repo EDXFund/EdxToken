@@ -3,8 +3,8 @@ Token contracts for edx
 
 
 ## detailedBalance
-use detailedBalance to retrieve vested
-param:
+* use detailedBalance to retrieve vested
+* param:
   account: which account
   mtype:   0 all tokens
            1 transferrable Tokens
