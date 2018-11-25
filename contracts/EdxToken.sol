@@ -83,14 +83,9 @@ contract EdxToken is ERC20 {
   }
     function  detailedBalance(address account, uint dtype) public view returns(uint256,uint256) {
 
-        if (dtype == 0) {
-                return (balanceOf(account),balanceOf(account));
-            }
-        else if (dtype == 1){
-            return  (_balances[account],_balances[account]);
-
-        }
-         else if( dtype ==  2 ) {
+        if (dtype == 0 || dtype == 1) {
+                return (balanceOf(account),_balances[account]);
+        } else if( dtype ==  2 ) {
             return  (_bs_balance[account].vested,_bs_balance[account].remain);
 
         }else if (dtype ==  3){
@@ -330,6 +325,7 @@ contract EdxToken is ERC20 {
 
 //上所，开始分发
 	function release() public {
+		require(msg.sender == _owner);
 		if(_releaseTime == 0) {
 			_releaseTime = now;
 		}

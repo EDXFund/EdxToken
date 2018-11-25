@@ -9,12 +9,11 @@ Token contracts for edx
   1.account: which account
 
   2.mtype:  
-  * 0 all tokens
-  * 1 transferrable Tokens
+  * 0/1 all tokens  returns (all tokens, transferrable tokens)
   * 2 basestone Invest info   (all invested, locked)
   * 3 pe Invest info   (all invested, locked)
   * 4 team Invest info   (all invested, locked)
-  
+
 ## 	grantRole(address account,uint8 mtype,uint256 amount)
 
   * use grantRole to set authorize
