@@ -9,7 +9,8 @@ Token contracts for edx
   1.account: which account
 
   2.mtype:  
-  * 0/1 all tokens  returns (all tokens, transferrable tokens)
+  * 0 all tokens  returns (all tokens, locked tokens)
+  * 1 all tokens  returns (all tokens,transferrable tokens)
   * 2 basestone Invest info   (all invested, locked)
   * 3 pe Invest info   (all invested, locked)
   * 4 team Invest info   (all invested, locked)

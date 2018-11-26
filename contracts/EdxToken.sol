@@ -84,14 +84,20 @@ contract EdxToken is ERC20 {
     function  detailedBalance(address account, uint dtype) public view returns(uint256,uint256) {
 
         if (dtype == 0 || dtype == 1) {
-                return (balanceOf(account),_balances[account]);
-        } else if( dtype ==  2 ) {
-            return  (_bs_balance[account].vested,_bs_balance[account].remain);
+					  uint256 result = balanceOf(account);
+						uint256 locked = getBSBalance(account).add(getPEBalance(account)).add(getTMBalance(account));
+						if(dtype == 0){
+						   return (result,locked);
+						}else{
+							 return (result,result.sub(locked));
+						}
 
+        } else if( dtype ==  2 ) {
+            return  (_bs_balance[account].vested,getBSBalance(account));
         }else if (dtype ==  3){
-					  return (_pe_balance[account].vested,_pe_balance[account].remain);
+					  return (_pe_balance[account].vested,getPEBalance(account));
 		}else if (dtype ==  4){
-					  return (_tm_balance[account].vested,_tm_balance[account].remain);
+					  return (_tm_balance[account].vested,getTMBalance(account));
 		}else {
 		    return (0,0);
 		 }
@@ -330,11 +336,11 @@ contract EdxToken is ERC20 {
 			_releaseTime = now;
 		}
 	}
-	//基石代币释放
-	function _moveBSBalance(address account) public {
+	function getBSBalance(address account) public view returns(uint256){
+		uint  elasped = now - _releaseTime;
+		uint256 shouldRemain = _bs_balance[account].remain;
 		if( _releaseTime !=  0 && now > _releaseTime && _bs_balance[account].remain > 0){
-			uint  elasped = now - _releaseTime;
-			uint256 shouldRemain = 0;
+
 			if(elasped < 180 days) { //
 				shouldRemain = _bs_balance[account].vested.mul(9).div(10);
 			} else if(elasped < 420 days) {
@@ -344,18 +350,24 @@ contract EdxToken is ERC20 {
 			}else {
 				shouldRemain = 0;
 			}
+
 		}
+		return shouldRemain;
+	}
+	//基石代币释放
+	function _moveBSBalance(address account) internal {
+		uint256 shouldRemain = getBSBalance(account);
 		if(_bs_balance[account].remain > shouldRemain) {
 			uint256 toMove = _bs_balance[account].remain.sub(shouldRemain);
 			_bs_balance[account].remain = shouldRemain;
 			_balances[account] = _balances[account].add(toMove);
 		}
 	}
-	//私募代币释放
-	function _movePEBalance(address account) public {
+	function getPEBalance(address account) public view returns(uint256) {
+		uint  elasped = now - _releaseTime;
+		uint256 shouldRemain = _pe_balance[account].remain;
 		if( _releaseTime !=  0 && _pe_balance[account].remain > 0){
-			uint  elasped = now - _releaseTime;
-			uint256 shouldRemain = 0;
+
 
 			if(elasped < 150 days) { //首先释放10%
 				shouldRemain = _pe_balance[account].vested.mul(9).div(10);
@@ -369,21 +381,26 @@ contract EdxToken is ERC20 {
 			}
 
 		}
+		return shouldRemain;
+	}
+	//私募代币释放
+	function _movePEBalance(address account) internal {
+		uint256 shouldRemain = getPEBalance(account);
 		if(_pe_balance[account].remain > shouldRemain) {
 			uint256 toMove = _pe_balance[account].remain.sub(shouldRemain);
 			_pe_balance[account].remain = shouldRemain;
 			_balances[account] = _balances[account].add(toMove);
 		}
 	}
-	function _moveTMBalance(address account ) public {
+	function getTMBalance(address account ) public view returns(uint256){
+		uint  elasped = now - _releaseTime;
+		uint256 shouldRemain = _tm_balance[account].remain;
 		if( _releaseTime !=  0 && _tm_balance[account].remain > 0){
-			uint  elasped = now - _releaseTime;
-			uint256 shouldRemain = 0;
 			//三个月起，每天释放千分之一，
 			if(elasped < 90 days) { //release 10%
 				shouldRemain = _tm_balance[account].vested;
 			} else {
-				  //release other 90% linearly
+					//release other 90% linearly
 					elasped = elasped / 1 days;
 					if(elasped <= 1090){
 							shouldRemain = _tm_balance[account].vested.mul(1090-elasped).div(1000);
@@ -392,6 +409,10 @@ contract EdxToken is ERC20 {
 					}
 			}
 		}
+		return shouldRemain;
+	}
+	function _moveTMBalance(address account ) internal {
+		uint256 shouldRemain = getTMBalance(account);
 		if(_tm_balance[account].remain > shouldRemain) {
 			uint256 toMove = _tm_balance[account].remain.sub(shouldRemain);
 			_tm_balance[account].remain = shouldRemain;
