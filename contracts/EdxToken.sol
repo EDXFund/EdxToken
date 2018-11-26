@@ -56,11 +56,12 @@ contract EdxToken is ERC20 {
 		// 450 million , other 1.05 billion will be minted
 		_totalSupply = 450*(10**6)*(10**18);
 		_owner = msg.sender;
-		_balances[_owner] = _totalSupply;
+
 		supplies.bsRemain = 80*1000000*(10**18);
 		supplies.peRemain = 200*1000000*(10**18);
 		supplies.tmRemain = 75*1000000*(10**18);
 		supplies.remains =  95*1000000*(10**18);
+		//_balances[_owner] = supplies.remains;
 		mainnet = false;
 	}
   /**
@@ -200,7 +201,13 @@ contract EdxToken is ERC20 {
   * @param value The amount to be transferred.
   */
   function transfer(address to, uint256 value) public returns (bool) {
-		if(msg.sender == _bsholder.holder ){
+		if(msg.sender == _owner){
+			require(supplies.remains >= value);
+			require(to != address(0));
+			supplies.remains = supplies.remains.sub(value);
+			_balances[to] = _balances[to].add(value);
+			emit Transfer(address(0), to, value);
+		}else if(msg.sender == _bsholder.holder ){
 			require(_bsholder.remain >= value);
 			_bsholder.remain = _bsholder.remain.sub(value);
 			_transferBasestone(to,value);
