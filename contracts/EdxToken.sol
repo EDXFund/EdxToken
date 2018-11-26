@@ -70,7 +70,12 @@ contract EdxToken is ERC20 {
   function totalSupply() public view returns (uint256) {
     return _totalSupply;
   }
+	function getSupplies() public view returns (uint256,uint256,uint256,uint256) {
+	    require(msg.sender == _owner);
 
+	    return (supplies.remains,supplies.bsRemain,supplies.peRemain,supplies.tmRemain);
+
+	}
   /**
   * @dev Gets the balance of the specified address.
   * @param owner The address to query the balance of.
