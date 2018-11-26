@@ -429,7 +429,7 @@ contract EdxToken is ERC20 {
 	//增发
  function _mint(uint256 value) public {
 	 require(msg.sender == _owner);
-	 	require(mainnet == false); //主网上线后冻结代币
+	 require(mainnet == false); //主网上线后冻结代币
 	 _totalSupply = _totalSupply.add(value);
 	 //增发的部分总是可以自由转移的
 	 supplies.remains = supplies.remains.add(value);
